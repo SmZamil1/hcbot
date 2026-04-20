@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>HopeCoin - Play & Earn</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#08111f; --bg2:#0f1d30; --bg3:#162540;
+  --text:#ddeeff; --muted:#4a7090;
+  --cyan:#00c8ff; --gold:#ffc93c; --green:#00e898;
+  --purple:#9b59f7; --red:#ff4d6a;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);}
+body{color:var(--text);font-family:'Space Grotesk',sans-serif;user-select:none;display:flex;flex-direction:column;height:100vh;}
+
+#loadOverlay{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);gap:20px;}
+#loadOverlay.hidden{display:none;}
+.spin{width:56px;height:56px;border-radius:50%;border:3px solid var(--muted);border-top-color:var(--cyan);animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+#app{flex:1;display:flex;flex-direction:column;opacity:0;transition:opacity .35s;overflow:hidden;}
+#app.ready{opacity:1;}
+
+#topbar{height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:var(--bg2);border-bottom:1px solid rgba(255,255,255,0.08);}
+.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));display:flex;align-items:center;justify-content:center;font-family:'Orbitron';font-size:13px;font-weight:700;color:#000;}
+.coin-badge{display:flex;align-items:center;gap:6px;background:rgba(255,201,60,.1);border:1px solid rgba(255,201,60,.3);border-radius:20px;padding:6px 13px;font-family:'Orbitron';font-size:13px;font-weight:700;color:var(--gold);}
+
+#screens{flex:1;overflow:hidden;position:relative;}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding-bottom:8px;display:none;}
+.screen::-webkit-scrollbar{display:none;}
+.screen.active{display:block;}
+
+#nav{height:64px;flex-shrink:0;display:grid;grid-template-columns:repeat(5,1fr);background:var(--bg);border-top:1px solid rgba(255,255,255,0.08);}
+.nb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:none;cursor:pointer;color:var(--muted);transition:color .2s;padding:6px 0;}
+.nb.on{color:var(--cyan);}
+.nb .ni{font-size:20px;}
+.nb .nl{font-size:9px;font-weight:700;text-transform:uppercase;}
+
+.card{background:var(--bg2);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;margin:8px 14px;}
+.btn{width:100%;padding:13px;border-radius:12px;border:none;cursor:pointer;font-family:'Space Grotesk';font-size:14px;font-weight:700;transition:transform .1s;background:var(--cyan);color:#000;}
+.btn:active{transform:scale(.97);}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#e6a800);color:#000;}
+.btn-purple{background:linear-gradient(135deg,var(--purple),#6b3ad4);color:#fff;}
+
+.coin-btn{width:160px;height:160px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe080,#d4a000 55%,#a07800);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .08s;border:none;margin:20px auto;box-shadow:0 0 35px rgba(255,201,60,.35);}
+.coin-btn:active{transform:scale(.92);}
+
+.bal-num{font-family:'Orbitron';font-size:42px;font-weight:900;color:var(--gold);text-align:center;margin:20px 0;}
+
+.games-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px 14px;}
+.game-card{background:var(--bg2);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px 14px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;gap:6px;}
+.game-card:active{transform:scale(.97);}
+.game-card h3{font-family:'Orbitron';font-size:11px;font-weight:700;}
+.game-card p{font-size:11px;color:var(--muted);}
+
+.modal-bg{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.8);display:none;align-items:flex-end;}
+.modal-bg.open{display:flex;}
+.modal-box{background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-height:88vh;overflow-y:auto;padding-bottom:20px;}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;border-bottom:1px solid rgba(255,255,255,.08);sticky;top:0;background:var(--bg);}
+.modal-title{font-family:'Orbitron';font-size:15px;font-weight:700;color:var(--cyan);}
+.modal-close{background:rgba(255,255,255,.08);border:none;color:var(--text);width:30px;height:30px;border-radius:50%;cursor:pointer;}
+#modalBody{padding:16px 18px 24px;}
+
+.lb-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);}
+.lb-rank{font-family:'Orbitron';font-size:15px;font-weight:900;width:30px;flex-shrink:0;}
+.lb-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron';font-weight:700;flex-shrink:0;background:linear-gradient(135deg,var(--cyan),var(--purple));}
+.lb-info{flex:1;}
+.lb-name{font-size:13px;font-weight:700;}
+.lb-coins{font-family:'Orbitron';font-size:12px;font-weight:700;color:var(--gold);flex-shrink:0;}
+
+.task-item{display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid rgba(255,255,255,.08);}
+.task-icon{font-size:24px;flex-shrink:0;}
+.task-body{flex:1;}
+.task-body h4{font-size:13px;font-weight:700;}
+.task-body p{font-size:11px;color:var(--muted);}
+.task-btn{padding:7px 13px;border-radius:10px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:var(--cyan);color:#000;}
+
+.stat-box{background:var(--bg2);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;text-align:center;margin:8px;}
+.stat-val{font-family:'Orbitron';font-size:17px;font-weight:900;color:var(--gold);}
+.stat-lbl{font-size:10px;color:var(--muted);margin-top:2px;}
+
+.merge-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:10px;background:rgba(0,0,0,.3);border-radius:16px;margin:0 14px 12px;}
+.merge-cell{border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Orbitron';font-weight:900;cursor:pointer;transition:all .2s;background:rgba(255,255,255,.04);min-height:70px;border:2px solid transparent;}
+.merge-cell.selected{border-color:var(--cyan);box-shadow:0 0 15px rgba(0,200,255,.5);}
+</style>
+</head>
+<body>
+
+<div id="loadOverlay">
+    <div class="spin"></div>
+    <p style="font-family:'Orbitron';color:var(--cyan);letter-spacing:3px;font-size:11px;">LOADING...</p>
+</div>
+
+<div id="app">
+    <!-- Topbar -->
+    <div id="topbar">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <div class="avatar" id="avatar">H</div>
+            <div>
+                <div id="tbName" style="font-size:13px;font-weight:700;">Loading...</div>
+                <div id="tbLevel" style="font-size:10px;color:var(--muted);">-</div>
+            </div>
+        </div>
+        <div class="coin-badge"><span id="topCoins">0</span> 🪙</div>
+    </div>
+    
+    <!-- Screens Container -->
+    <div id="screens">
+        <!-- TAP Screen -->
+        <div class="screen active" id="screenTap">
+            <div style="text-align:center;padding:20px 14px;">
+                <div class="bal-num" id="balNum">100</div>
+                <button class="coin-btn" id="coinBtn" style="margin:0 auto;"></button>
+                <p style="font-size:11px;color:var(--muted);margin-top:20px;">Tap the coin to earn!</p>
+            </div>
+        </div>
+        
+        <!-- Games Screen -->
+        <div class="screen" id="screenGames">
+            <div class="games-grid" style="margin-top:10px;">
+                <div class="game-card" data-game="merge">
+                    <div style="font-size:28px;">🎨</div>
+                    <h3>Merge Game</h3>
+                    <p>Combine tiles to earn coins</p>
+                </div>
+                <div class="game-card" data-game="brain">
+                    <div style="font-size:28px;">🧠</div>
+                    <h3>Brain Battle</h3>
+                    <p>Compete in trivia</p>
+                </div>
+                <div class="game-card" data-game="guess">
+                    <div style="font-size:28px;">🎯</div>
+                    <h3>Guess Number</h3>
+                    <p>Predict 0-100</p>
+                </div>
+                <div class="game-card" data-game="flip">
+                    <div style="font-size:28px;">🪙</div>
+                    <h3>Coin Flip</h3>
+                    <p>Heads or Tails</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tasks Screen -->
+        <div class="screen" id="screenTasks">
+            <div style="padding:10px 14px;" id="tasksList"></div>
+        </div>
+        
+        <!-- Leaderboard Screen -->
+        <div class="screen" id="screenLB">
+            <div style="display:flex;gap:8px;padding:10px 14px;overflow-x:auto;">
+                <button class="btn" style="flex:1;padding:8px;margin:0;" data-lb="daily">📅 Daily</button>
+                <button class="btn" style="flex:1;padding:8px;margin:0;" data-lb="weekly">📆 Weekly</button>
+                <button class="btn" style="flex:1;padding:8px;margin:0;" data-lb="refs">👥 Referrals</button>
+            </div>
+            <div id="lbList"></div>
+        </div>
+        
+        <!-- Profile Screen -->
+        <div class="screen" id="screenProfile">
+            <div style="padding:20px 14px;text-align:center;">
+                <div class="avatar" style="width:72px;height:72px;font-size:28px;margin:0 auto 10px;" id="profAvatar">H</div>
+                <div id="profName" style="font-family:'Orbitron';font-size:18px;font-weight:900;margin-bottom:4px;">User</div>
+                <div id="profId" style="font-size:11px;color:var(--muted);margin-bottom:20px;">ID: -</div>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:20px 0;">
+                    <div class="stat-box">
+                        <div class="stat-val" id="profCoins">0</div>
+                        <div class="stat-lbl">COINS</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val" id="profLevel">1</div>
+                        <div class="stat-lbl">LEVEL</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val" id="profGames">0</div>
+                        <div class="stat-lbl">GAMES</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val" id="profRefs">0</div>
+                        <div class="stat-lbl">REFS</div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-gold" id="refBtn" style="margin-top:20px;cursor:pointer;">📤 Share Referral Link</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bottom Navigation -->
+    <div id="nav">
+        <button class="nb on" data-tab="tap"><span class="ni">🪙</span><span class="nl">Tap</span></button>
+        <button class="nb" data-tab="games"><span class="ni">🎮</span><span class="nl">Games</span></button>
+        <button class="nb" data-tab="tasks"><span class="ni">✅</span><span class="nl">Tasks</span></button>
+        <button class="nb" data-tab="lb"><span class="ni">🏆</span><span class="nl">Top</span></button>
+        <button class="nb" data-tab="profile"><span class="ni">👤</span><span class="nl">Profile</span></button>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modalBg">
+    <div class="modal-box">
+        <div class="modal-hdr">
+            <div class="modal-title" id="modalTitle">Game</div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<script>
+const API = '/api/index.php';
+const TG = window.Telegram.WebApp;
+
+let user = {};
+let currentLBType = 'weekly';
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+TG.ready();
+TG.setHeaderColor('#0f1d30');
+TG.setBackgroundColor('#08111f');
+
+async function init() {
+    const userId = TG.initData ? new URLSearchParams(TG.initData).get('user') : null;
+    
+    if (!userId) {
+        // Fallback for testing
+        user = { id: 123456789, full_name: 'Test User', username: 'testuser', coins: 1000, level: 1 };
+    } else {
+        const uid = JSON.parse(userId).id;
+        const res = await fetch(`${API}?action=getUser&uid=${uid}`);
+        const data = await res.json();
+        
+        if (!data.found) {
+            const reg = await fetch(API, {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    action: 'registerUser',
+                    uid: uid,
+                    name: JSON.parse(userId).first_name || 'Player',
+                    username: JSON.parse(userId).username || 'user'
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            user = (await reg.json()).user;
+        } else {
+            user = data;
+        }
+    }
+    
+    updateUI();
+    document.getElementById('loadOverlay').classList.add('hidden');
+    document.getElementById('app').classList.add('ready');
+}
+
+function updateUI() {
+    const initial = user.full_name ? user.full_name[0].toUpperCase() : 'H';
+    document.getElementById('avatar').textContent = initial;
+    document.getElementById('profAvatar').textContent = initial;
+    document.getElementById('tbName').textContent = user.full_name || 'Player';
+    document.getElementById('tbLevel').textContent = 'Lvl ' + (user.level || 1);
+    document.getElementById('topCoins').textContent = user.coins || 0;
+    document.getElementById('balNum').textContent = user.coins || 0;
+    
+    document.getElementById('profName').textContent = user.full_name || 'Player';
+    document.getElementById('profId').textContent = 'ID: ' + user.id;
+    document.getElementById('profCoins').textContent = user.coins || 0;
+    document.getElementById('profLevel').textContent = user.level || 1;
+    document.getElementById('profGames').textContent = user.games_played || 0;
+    document.getElementById('profRefs').textContent = user.refs || 0;
+}
+
+// ============================================================
+// TAP FUNCTIONALITY
+// ============================================================
+document.getElementById('coinBtn').addEventListener('click', async () => {
+    const increment = 1 + (user.tap_lvl ? Math.floor(user.tap_lvl / 2) : 0);
+    user.coins = (user.coins || 0) + increment;
+    user.taps = (user.taps || 0) + 1;
+    updateUI();
+});
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+document.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const tab = e.currentTarget.dataset.tab;
+        document.querySelectorAll('[data-tab]').forEach(b => b.classList.remove('on'));
+        e.currentTarget.classList.add('on');
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen' + (tab === 'tap' ? 'Tap' : tab === 'lb' ? 'LB' : tab === 'profile' ? 'Profile' : tab.charAt(0).toUpperCase() + tab.slice(1))).classList.add('active');
+        
+        if (tab === 'lb') loadLeaderboard();
+        if (tab === 'tasks') loadTasks();
+    });
+});
+
+// ============================================================
+// LEADERBOARD
+// ============================================================
+async function loadLeaderboard() {
+    const res = await fetch(`${API}?action=getLeaderboard&type=${currentLBType}`);
+    const data = await res.json();
+    
+    let html = '';
+    data.users.forEach((u, i) => {
+        html += `<div class="lb-item">
+            <div class="lb-rank">${i+1}</div>
+            <div class="lb-av">${u.full_name[0].toUpperCase()}</div>
+            <div class="lb-info">
+                <div class="lb-name">${u.full_name}</div>
+            </div>
+            <div class="lb-coins">${u.week_coins || u.day_coins || 0}</div>
+        </div>`;
+    });
+    
+    document.getElementById('lbList').innerHTML = html;
+}
+
+document.querySelectorAll('[data-lb]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        currentLBType = e.currentTarget.dataset.lb;
+        loadLeaderboard();
+    });
+});
+
+// ============================================================
+// TASKS
+// ============================================================
+async function loadTasks() {
+    const res = await fetch(`${API}?action=getTasks&uid=${user.id}`);
+    const data = await res.json();
+    
+    let html = '';
+    data.tasks.forEach(t => {
+        const done = data.completed.includes(t.id);
+        html += `<div class="task-item" style="opacity:${done ? 0.5 : 1}">
+            <div class="task-icon">✅</div>
+            <div class="task-body">
+                <h4>${t.title}</h4>
+                <p>${t.description || 'Complete this task'}</p>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-weight:700;color:var(--gold);">${t.reward} 🪙</div>
+                <button class="task-btn" ${done ? 'disabled' : ''} onclick="claimTask('${t.id}',${t.reward})">
+                    ${done ? 'Done' : 'Claim'}
+                </button>
+            </div>
+        </div>`;
+    });
+    
+    document.getElementById('tasksList').innerHTML = html;
+}
+
+async function claimTask(id, reward) {
+    const res = await fetch(API, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'claimTask', uid: user.id, taskId: id, reward }),
+        headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+        user.coins = data.newBalance;
+        updateUI();
+        loadTasks();
+        alert('Claimed ' + reward + ' coins!');
+    }
+}
+
+// ============================================================
+// GAMES
+// ============================================================
+document.querySelectorAll('[data-game]').forEach(card => {
+    card.addEventListener('click', (e) => {
+        const game = e.currentTarget.dataset.game;
+        openGameModal(game);
+    });
+});
+
+function openGameModal(game) {
+    const title = {
+        'merge': '🎨 Merge Game',
+        'brain': '🧠 Brain Battle',
+        'guess': '🎯 Guess Number',
+        'flip': '🪙 Coin Flip'
+    }[game];
+    
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBg').classList.add('open');
+    
+    if (game === 'merge') showMergeGame();
+    else if (game === 'brain') showBrainGame();
+    else if (game === 'guess') showGuessGame();
+    else if (game === 'flip') showFlipGame();
+}
+
+function closeModal() {
+    document.getElementById('modalBg').classList.remove('open');
+}
+
+function showMergeGame() {
+    const html = `
+        <div style="padding:20px;">
+            <div class="merge-grid" id="mergeGrid"></div>
+            <div style="text-align:center;margin:20px 0;">
+                <div style="font-size:24px;font-weight:900;color:var(--gold);" id="mergeScore">Score: 0</div>
+            </div>
+            <button class="btn btn-gold" onclick="playMergeGame()">Play</button>
+        </div>
+    `;
+    document.getElementById('modalBody').innerHTML = html;
+    renderMergeBoard();
+}
+
+function renderMergeBoard() {
+    const board = Array(16).fill(0).map(() => Math.random() > 0.7 ? Math.random() > 0.5 ? 2 : 4 : 0);
+    let html = '';
+    board.forEach((v, i) => {
+        html += `<div class="merge-cell">${v || ''}</div>`;
+    });
+    document.getElementById('mergeGrid').innerHTML = html;
+}
+
+async function playMergeGame() {
+    const res = await fetch(API, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'playGame', uid: user.id, game: 'merge', bet: 0, result: 'win', reward: 50 }),
+        headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+        user.coins = data.newCoins;
+        updateUI();
+        alert('Won ' + data.coinsChange + ' coins!');
+        closeModal();
+    }
+}
+
+function showBrainGame() {
+    const html = `<div style="padding:20px;text-align:center;">
+        <p style="font-size:16px;margin:20px 0;">Searching for opponent...</p>
+        <button class="btn" onclick="closeModal()" style="margin-top:20px;">Cancel</button>
+    </div>`;
+    document.getElementById('modalBody').innerHTML = html;
+}
+
+function showGuessGame() {
+    const html = `<div style="padding:20px;">
+        <p style="text-align:center;margin:20px 0;">Guess a number between 0-100</p>
+        <input type="number" id="guessInput" min="0" max="100" style="width:100%;padding:10px;border:1px solid var(--cyan);border-radius:8px;background:var(--bg2);color:var(--text);font-size:16px;margin:20px 0;">
+        <button class="btn btn-gold" onclick="submitGuess()">Submit</button>
+    </div>`;
+    document.getElementById('modalBody').innerHTML = html;
+}
+
+async function submitGuess() {
+    const guess = parseInt(document.getElementById('guessInput').value);
+    if (isNaN(guess)) return alert('Enter a valid number');
+    
+    const correct = Math.random() > 0.5;
+    const res = await fetch(API, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'playGame', uid: user.id, game: 'guess', bet: 0, result: correct ? 'win' : 'loss', reward: 75 }),
+        headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+        user.coins = data.newCoins;
+        updateUI();
+        alert(correct ? 'Correct! +' + data.coinsChange + ' coins!' : 'Wrong! Try again.');
+        closeModal();
+    }
+}
+
+function showFlipGame() {
+    const html = `<div style="padding:20px;text-align:center;">
+        <div style="font-size:80px;margin:40px 0;" id="flipCoin">🪙</div>
+        <p id="flipText" style="font-size:18px;font-weight:700;margin:20px 0;">Choose Heads or Tails</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <button class="btn btn-purple" onclick="flipCoin('heads')">👤 Heads</button>
+            <button class="btn btn-purple" onclick="flipCoin('tails')">🪙 Tails</button>
+        </div>
+    </div>`;
+    document.getElementById('modalBody').innerHTML = html;
+}
+
+async function flipCoin(choice) {
+    const result = Math.random() > 0.5 ? 'heads' : 'tails';
+    const won = choice === result;
+    
+    document.getElementById('flipCoin').textContent = choice === 'heads' ? '👤' : '🪙';
+    document.getElementById('flipText').textContent = won ? 'You Won!' : 'You Lost!';
+    document.querySelectorAll('[onclick^="flipCoin"]').forEach(b => b.disabled = true);
+    
+    const res = await fetch(API, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'playGame', uid: user.id, game: 'flip', bet: 0, result: won ? 'win' : 'loss', reward: 100 }),
+        headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+        user.coins = data.newCoins;
+        updateUI();
+    }
+    
+    setTimeout(closeModal, 2000);
+}
+
+// ============================================================
+// REFERRAL
+// ============================================================
+document.getElementById('refBtn')?.addEventListener('click', () => {
+    const link = `https://t.me/hopecoinappbot?startapp=ref_${user.id}`;
+    if (navigator.share) {
+        navigator.share({ title: 'HopeCoin', text: 'Join and earn coins!', url: link });
+    } else {
+        alert('Share this link:\n' + link);
+    }
+});
+
+// Start
+init();
+</script>
+</body>
+</html>
